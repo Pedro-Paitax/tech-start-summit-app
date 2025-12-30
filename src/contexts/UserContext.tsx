@@ -4,14 +4,15 @@ export type User = {
   nomeCompleto: string;
   email: string;
   cpf: string;
+  agenda: string[]; 
 };
 
-// O Contexto agora carrega o usuário E as funções para manipular ele
 export type UserContextType = {
   user: User | null;
   login: (userData: User) => void;
   logout: () => void;
-  isLoading: boolean; // Útil para não mostrar a tela de login enquanto verifica a sessão
+  toggleAgendaItem: (talkId: string) => void; 
+  isLoading: boolean;
 };
 
 export const UserContext = createContext<UserContextType | null>(null);

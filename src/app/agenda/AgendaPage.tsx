@@ -2,10 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { User, Clock, X, MapPin, CalendarDays, Star } from "lucide-react"; // Importei Star para o botão de interesse
-import { useNavigate } from "react-router-dom"; // Import necessário para redirecionamento
+import { User, Clock, X, MapPin, CalendarDays, Star, Layers } from "lucide-react"; // Importei Layers para o ícone de simultâneas
+import { useNavigate } from "react-router-dom";
 import { useUser } from "../../contexts/useUser";
-import { MOCK_NOTION_DATA, type AgendaItem } from "./data-mock";
 
 /* ---------------- CONFIG ---------------- */
 
@@ -18,31 +17,35 @@ const typeColors: Record<string, string> = {
 };
 
 export default function AgendaPage() {
-    const { user } = useUser();
-    const navigate = useNavigate(); // Hook de navegação
-    
+    const { user, toggleAgendaItem } = useUser();
+    const navigate = useNavigate();
+
     const [items, setItems] = useState<AgendaItem[]>([]);
     const [selected, setSelected] = useState<AgendaItem | null>(null);
     const [activeDay, setActiveDay] = useState<string | null>(null);
 
-    useEffect(() => {
-        setItems(MOCK_NOTION_DATA);
-    }, []);
+useEffect(() => {
+  fetch("http://localhost:3333/api/agenda")
+    .then(res => res.json())
+    .then(setItems);
+}, []);
 
-    // Função Lógica do Botão "Tenho Interesse"
+console.log(items)
+
+
+    const isSaved = selected && user?.agenda?.includes(selected.id);
     const handleTenhoInteresse = () => {
         if (!user) {
-            // Se não estiver logado, redireciona para o login
-            navigate("/"); 
+            navigate("/");
             return;
         }
-        
-        // Aqui viria a lógica de salvar no banco de dados
-        alert(`Interesse registrado em: ${selected?.nome}`);
-        setSelected(null); // Fecha o modal (opcional)
+
+        if (selected) {
+            toggleAgendaItem(selected.id);
+            setSelected(null);
+        }
     };
 
-    // Agrupamento de dados (Mantido igual)
     const grouped = items.reduce((acc, item) => {
         if (!item.dayKey || !item.time) return acc;
         if (!acc[item.dayKey]) acc[item.dayKey] = { label: item.dayLabel, slots: {} };
@@ -61,7 +64,7 @@ export default function AgendaPage() {
 
     return (
         <section className="pb-24 pt-8 px-4 md:px-8 max-w-4xl mx-auto min-h-screen">
-            
+
             <div className="mb-6">
                 <h1 className="text-3xl font-bold mb-2">Programação</h1>
                 <p className="text-[var(--muted-foreground)]">
@@ -69,13 +72,11 @@ export default function AgendaPage() {
                 </p>
             </div>
 
-            {/* --- CORREÇÃO DO SCROLLBAR AQUI --- */}
-            {/* Adicionei as classes [&::-webkit-scrollbar]:hidden etc... */}
             <div className="sticky top-0 z-30 bg-[var(--background)]/95 backdrop-blur pt-2 pb-4 border-b border-[var(--border)] mb-8">
-                <div className="flex gap-3 overflow-x-auto pb-2 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:'none'] [scrollbar-width:'none']">
+                <div className="flex gap-3 overflow-x-auto pb-2 no-scrollbar">
                     {orderedDays.map((dayKey) => {
                         const isActive = activeDay === dayKey;
-                        const dateObj = new Date(dayKey + "T00:00:00"); 
+                        const dateObj = new Date(dayKey + "T00:00:00");
                         const dayNumber = dateObj.getDate();
                         const monthName = dateObj.toLocaleDateString('pt-BR', { month: 'short' }).toUpperCase().replace('.', '');
 
@@ -86,8 +87,8 @@ export default function AgendaPage() {
                                 className={`
                                     relative flex-shrink-0 flex flex-col items-center justify-center 
                                     min-w-[4.5rem] py-2 px-4 rounded-xl border transition-all duration-300
-                                    ${isActive 
-                                        ? "bg-[var(--primary)] border-[var(--primary)] text-white shadow-lg shadow-[var(--primary)]/20 scale-105" 
+                                    ${isActive
+                                        ? "bg-[var(--primary)] border-[var(--primary)] text-white shadow-lg shadow-[var(--primary)]/20 scale-105"
                                         : "bg-[var(--card)] border-[var(--border)] text-[var(--muted-foreground)] hover:border-[var(--muted-foreground)]"
                                     }
                                 `}
@@ -95,7 +96,7 @@ export default function AgendaPage() {
                                 <span className="text-xs font-medium opacity-80">{monthName}</span>
                                 <span className="text-xl font-bold leading-none">{dayNumber}</span>
                                 {isActive && (
-                                    <motion.div 
+                                    <motion.div
                                         layoutId="activeTab"
                                         className="absolute -bottom-2 w-1 h-1 rounded-full bg-[var(--primary)]"
                                     />
@@ -104,9 +105,9 @@ export default function AgendaPage() {
                         );
                     })}
                 </div>
-                
+
                 {activeDay && grouped[activeDay] && (
-                    <motion.p 
+                    <motion.p
                         initial={{ opacity: 0 }} animate={{ opacity: 1 }} key={activeDay}
                         className="text-xs text-[var(--primary)] font-bold uppercase tracking-widest mt-2"
                     >
@@ -115,7 +116,6 @@ export default function AgendaPage() {
                 )}
             </div>
 
-            {/* LISTA DE CONTEÚDO (Mantida igual, só ocultei para brevidade mas você deve manter o código anterior aqui) */}
             <AnimatePresence mode="wait">
                 {activeDay && grouped[activeDay] && (
                     <motion.div
@@ -125,10 +125,27 @@ export default function AgendaPage() {
                     >
                         {Object.entries(grouped[activeDay].slots).map(([time, events]: any) => (
                             <div key={time} className="mb-8 relative pl-6 border-l-2 border-[var(--border)] ml-3">
+                                {/* Bolinha da timeline */}
                                 <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-[var(--background)] border-2 border-[var(--primary)] z-10" />
+
                                 <div className="flex items-center gap-3 mb-4 -mt-1.5">
-                                    <span className="text-xl font-bold font-mono tracking-tight">{time}</span>
+                                    <div className="flex items-center gap-2 text-[var(--primary)]">
+                                        <Clock size={18} strokeWidth={2.5} />
+                                        <span className="text-xl font-bold font-mono tracking-tight text-[var(--foreground)]">
+                                            {time}
+                                        </span>
+                                    </div>
+
+                                    {events.length > 1 && (
+                                        <span className="flex items-center gap-1.5 text-[10px] font-medium text-[var(--muted-foreground)] bg-[var(--secondary)] px-2.5 py-1 rounded-full border border-[var(--border)]">
+                                            <Layers size={12} />
+                                            {events.length} simultâneas
+                                        </span>
+                                    )}
                                 </div>
+                                {/* ==================================================== */}
+
+
                                 <div className="grid gap-4 md:grid-cols-1">
                                     {events.map((item: AgendaItem) => (
                                         <motion.div
@@ -171,19 +188,18 @@ export default function AgendaPage() {
                 )}
             </AnimatePresence>
 
-            {/* ================= MODAL ATUALIZADO ================= */}
             <AnimatePresence>
                 {selected && (
                     <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center p-4 sm:p-6">
-                        <motion.div 
+                        <motion.div
                             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                             onClick={() => setSelected(null)}
                             className="absolute inset-0 bg-black/60 backdrop-blur-sm"
                         />
-                        
-                        <motion.div 
-                            initial={{ opacity: 0, y: 100, scale: 0.95 }} 
-                            animate={{ opacity: 1, y: 0, scale: 1 }} 
+
+                        <motion.div
+                            initial={{ opacity: 0, y: 100, scale: 0.95 }}
+                            animate={{ opacity: 1, y: 0, scale: 1 }}
                             exit={{ opacity: 0, y: 100, scale: 0.95 }}
                             className="relative w-full max-w-lg bg-[var(--card)] border border-[var(--border)] rounded-2xl shadow-2xl overflow-hidden max-h-[85vh] flex flex-col"
                         >
@@ -200,7 +216,6 @@ export default function AgendaPage() {
                             </div>
 
                             <div className="p-6 overflow-y-auto flex-1 space-y-6">
-                                {/* Informações do evento (mantido igual) */}
                                 <div className="flex flex-wrap gap-4 text-sm">
                                     <div className="flex items-center gap-2 text-[var(--foreground)] bg-[var(--secondary)]/50 px-3 py-2 rounded-lg border border-[var(--border)]">
                                         <Clock size={16} className="text-[var(--primary)]" />
@@ -225,27 +240,29 @@ export default function AgendaPage() {
                                     <div>
                                         <h4 className="text-xs font-bold uppercase tracking-wider text-[var(--muted-foreground)] mb-3">Quem vai falar</h4>
                                         <div className="grid gap-3">
-                                             {selected.speakerNames.map(name => (
-                                                 <div key={name} className="flex items-center gap-3 p-3 rounded-xl border border-[var(--border)] bg-[var(--input)]/10 hover:bg-[var(--input)]/30 transition">
-                                                     <div className="w-8 h-8 rounded-full bg-[var(--primary)]/20 flex items-center justify-center text-[var(--primary)]">
+                                            {selected.speakerNames.map(name => (
+                                                <div key={name} className="flex items-center gap-3 p-3 rounded-xl border border-[var(--border)] bg-[var(--input)]/10 hover:bg-[var(--input)]/30 transition">
+                                                    <div className="w-8 h-8 rounded-full bg-[var(--primary)]/20 flex items-center justify-center text-[var(--primary)]">
                                                         <User size={16} />
-                                                     </div>
-                                                     <span className="font-medium">{name}</span>
-                                                 </div>
-                                             ))}
+                                                    </div>
+                                                    <span className="font-medium">{name}</span>
+                                                </div>
+                                            ))}
                                         </div>
                                     </div>
                                 )}
                             </div>
 
-                            {/* --- RODAPÉ COM BOTÃO DE INTERESSE --- */}
                             <div className="p-4 border-t border-[var(--border)] bg-[var(--background)]/50">
-                                <button 
+                                <button
                                     onClick={handleTenhoInteresse}
-                                    className="w-full py-3 rounded-xl bg-[var(--primary)] text-[var(--primary-foreground)] font-bold hover:opacity-90 transition shadow-lg shadow-[var(--primary)]/20 flex items-center justify-center gap-2"
+                                    className={`w-full py-3 rounded-xl font-bold transition flex items-center justify-center gap-2 shadow-lg ${isSaved
+                                            ? "bg-[var(--secondary)] text-[var(--foreground)] border border-[var(--primary)]" // Estilo "Remover"
+                                            : "bg-[var(--primary)] text-[var(--primary-foreground)] shadow-[var(--primary)]/20" // Estilo "Adicionar"
+                                        }`}
                                 >
-                                    <Star size={18} fill="currentColor" className="text-white/20" />
-                                    Tenho Interesse
+                                    <Star size={18} fill={isSaved ? "currentColor" : "none"} className={isSaved ? "text-[var(--primary)]" : "text-white/20"} />
+                                    {isSaved ? "Remover da minha agenda" : "Tenho Interesse"}
                                 </button>
                                 {!user && (
                                     <p className="text-[10px] text-center mt-2 text-[var(--muted-foreground)]">
