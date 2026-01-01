@@ -1,82 +1,38 @@
 import express from "express";
+import { getProgramacao } from "./notion.js";
 import cors from "cors";
-import dotenv from "dotenv";
-import { Client } from "@notionhq/client";
+import "dotenv/config";
+import { generateAgendaPDF } from "./pdf.js";
 
-dotenv.config();
 const app = express();
+const PORT = process.env.PORT || 3333;
 app.use(cors());
 
-const notion = new Client({
-  auth: process.env.NOTION_API_KEY,
-});
-
-app.get("/api/agenda", async (_, res) => {
+app.get("/agenda", async (req, res) => {
   try {
-    const speakersResponse = await notion.databases.query({
-      database_id: process.env.NOTION_SPEAKERS_DATABASE_ID!,
-      filter: { property: "Visible", checkbox: { equals: true } },
-    });
-    console.log(speakersResponse.results);
-
-
-    const speakers = speakersResponse.results.map((page: any) => {
-      const p = page.properties;
-      return {
-        id: page.id,
-        nome: p.Nome?.title?.[0]?.plain_text || "",
-      };
-    });
-
-    const response = await notion.databases.query({
-      database_id: process.env.NOTION_PROGRAM_DATABASE_ID!,
-      filter: {
-        or: [
-          { property: "Status", status: { equals: "Aguardando Material" } },
-          { property: "Status", status: { equals: "Pronto" } },
-        ],
-      },
-      sorts: [{ property: "Date", direction: "ascending" }],
-    });
-
-    console.log(response.results);
-
-
-    const items = response.results.map((page: any) => {
-      const p = page.properties;
-      const start = p["Date"]?.date?.start || null;
-
-      const speakerIds =
-        p["Palestrante"]?.relation?.map((r: any) => r.id) || [];
-
-      const linkedSpeakers = speakerIds
-        .map(id => speakers.find(s => s.id === id))
-        .filter(Boolean);
-
-      return {
-        id: page.id,
-        nome: p.Nome?.title?.[0]?.plain_text || "",
-        date: start,
-        dayKey: start ? start.split("T")[0] : null,
-        time: start
-          ? new Date(start).toLocaleTimeString("pt-BR", {
-              hour: "2-digit",
-              minute: "2-digit",
-            })
-          : null,
-        speakerNames: linkedSpeakers.map(s => s.nome),
-        track: p["Track"]?.select?.name || "",
-        tipoConteudo: p["Tipo de Conteúdo"]?.select?.name || "",
-        description: p["Descrição"]?.rich_text?.[0]?.plain_text || "",
-      };
-    });
-
-} catch (e) {
-  console.error("ERRO AGENDA:", e);
-  res.status(500).json({ error: "Erro ao carregar agenda" });
-}
+    const agenda = await getProgramacao();
+    res.json(agenda);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Erro ao buscar agenda" });
+  }
 });
 
-app.listen(3333, () => {
-  console.log("API rodando em http://localhost:3333");
+
+app.post("/api/generate-agenda-pdf", async (req, res) => {
+  const { items, userName } = req.body;
+
+  const pdf = await generateAgendaPDF(items, userName);
+
+  res.setHeader("Content-Type", "application/pdf");
+  res.setHeader(
+    "Content-Disposition",
+    "attachment; filename=minha-agenda.pdf"
+  );
+
+  res.send(pdf);
+});
+
+app.listen(PORT, () => {
+  console.log(`Servidor rodando em http://localhost:${PORT}`);
 });

@@ -1,130 +1,275 @@
 "use client";
 
+import { useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Clock, MapPin, CalendarDays, ArrowLeft, Trash2 } from "lucide-react";
+import {
+  Calendar,
+  Trash2,
+  Share2,
+  Download,
+  Ticket,
+  Loader2,
+  X,
+} from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useUser } from "../../contexts/useUser";
-import { MOCK_NOTION_DATA, type AgendaItem } from "../agenda/data-mock"; // Reusando o mock
+import { db } from "../lib/firebase";
+import { doc, updateDoc, arrayRemove, onSnapshot } from "firebase/firestore";
+
+interface AgendaItem {
+  id: string;
+  nome: string;
+  tipoConteudo: string;
+  dayKey: string;
+  dayLabel: string;
+  time: string;
+  track?: string;
+  description?: string;
+  bigDescription?: string;
+  speakerNames?: string[];
+  publico?: string;
+  area?: string[];
+  topics?: string;
+  tags?: string[];
+  date?: string;
+}
 
 const typeColors: Record<string, string> = {
-    "Abertura": "border-blue-500 text-blue-400 bg-blue-500/10",
-    "Palestra Principal": "border-[var(--primary)] text-[var(--primary)] bg-[var(--primary)]/10",
-    "Painel de Discussão": "border-purple-500 text-purple-400 bg-purple-500/10",
-    "Workshop Prático": "border-emerald-500 text-emerald-400 bg-emerald-500/10",
-    "Pausa": "border-[var(--border)] text-[var(--muted-foreground)] bg-[var(--secondary)]",
+  Abertura: "bg-blue-500",
+  "Palestra Principal": "bg-[var(--primary)]",
+  "Painel de Discussão": "bg-purple-500",
+  "Workshop Prático": "bg-emerald-500",
+  Pausa: "bg-gray-400",
 };
 
-export default function MinhaAgendaPage() {
-    const { user, toggleAgendaItem } = useUser();
-    const navigate = useNavigate();
-    const [myTalks, setMyTalks] = useState<AgendaItem[]>([]);
+export default function MyAgendaPage() {
+  const { user } = useUser();
+  const navigate = useNavigate();
 
-    useEffect(() => {
-        if (!user) {
-            navigate("/");
-            return;
-        }
+  const [favorites, setFavorites] = useState<string[]>([]);
+  const [selected, setSelected] = useState<AgendaItem | null>(null);
 
-        // Filtra o Mock Data pegando só o que está no array do usuário
-        const saved = MOCK_NOTION_DATA.filter(item => user.agenda?.includes(item.id));
-        setMyTalks(saved);
-    }, [user, navigate]);
+  useEffect(() => {
+    if (!user) return;
+    const ref = doc(db, "users", user.uid);
+    return onSnapshot(ref, (snap) => {
+      if (snap.exists()) {
+        setFavorites(snap.data().agenda_favorites || []);
+      }
+    });
+  }, [user]);
 
-    // Agrupa apenas as palestras salvas
-    const grouped = myTalks.reduce((acc, item) => {
-        if (!item.dayKey) return acc;
-        if (!acc[item.dayKey]) acc[item.dayKey] = { label: item.dayLabel, items: [] };
-        acc[item.dayKey].items.push(item);
-        return acc;
-    }, {} as Record<string, any>);
+  const { data: allItems = [], isLoading } = useQuery({
+    queryKey: ["agenda"],
+    queryFn: async () => {
+      const res = await fetch("http://localhost:3333/agenda");
+      if (!res.ok) throw new Error("Erro ao carregar agenda");
+      return res.json() as Promise<AgendaItem[]>;
+    },
+    staleTime: 1000 * 60 * 30,
+    refetchOnWindowFocus: false,
+  });
 
-    // Ordena por horário dentro do dia
-    Object.keys(grouped).forEach(day => {
-        grouped[day].items.sort((a: AgendaItem, b: AgendaItem) => a.time.localeCompare(b.time));
+  const myItems = allItems
+    .filter((item) => favorites.includes(item.id))
+    .sort((a, b) => {
+      if (a.dayKey !== b.dayKey) return a.dayKey.localeCompare(b.dayKey);
+      return a.time.localeCompare(b.time);
     });
 
-    const orderedDays = Object.keys(grouped).sort();
+  const groupedByDay: Record<string, AgendaItem[]> = {};
+  myItems.forEach((item) => {
+    groupedByDay[item.dayKey] = groupedByDay[item.dayKey] || [];
+    groupedByDay[item.dayKey].push(item);
+  });
 
+  const removeFromAgenda = async (
+    e: React.MouseEvent | null,
+    itemId: string
+  ) => {
+    if (e) e.stopPropagation();
+    if (!user) return;
+    await updateDoc(doc(db, "users", user.uid), {
+      agenda_favorites: arrayRemove(itemId),
+    });
+    if (selected?.id === itemId) setSelected(null);
+  };
+
+const downloadAgendaPDF = async () => {
+  const res = await fetch("http://localhost:3333/api/generate-agenda-pdf", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      items: myItems,
+      userName: user?.displayName || "Participante",
+    }),
+  });
+
+  if (!res.ok) {
+    console.error("Erro ao gerar PDF");
+    return;
+  }
+
+  const blob = await res.blob();
+  const url = window.URL.createObjectURL(blob);
+
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "minha-agenda-techsummit.pdf";
+  a.click();
+
+  window.URL.revokeObjectURL(url);
+};
+  if (isLoading) {
     return (
-        <section className="pb-24 pt-6 px-4 md:px-8 max-w-3xl mx-auto min-h-screen">
-            
-            <div className="flex items-center gap-4 mb-8">
-                <button onClick={() => navigate(-1)} className="p-2 rounded-full bg-[var(--card)] border border-[var(--border)]">
-                    <ArrowLeft size={20} />
-                </button>
-                <div>
-                    <h1 className="text-2xl font-bold">Minha Agenda</h1>
-                    <p className="text-xs text-[var(--muted-foreground)]">Suas atividades selecionadas</p>
-                </div>
-            </div>
-
-            {myTalks.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-20 text-center opacity-50">
-                    <CalendarDays size={64} className="mb-4 text-[var(--primary)]" />
-                    <h3 className="text-lg font-bold">Sua agenda está vazia</h3>
-                    <p className="text-sm max-w-xs mt-2">Vá para a programação geral e clique em "Tenho Interesse" para montar seu cronograma.</p>
-                    <button 
-                        onClick={() => navigate("/agenda")}
-                        className="mt-6 px-6 py-2 bg-[var(--primary)] text-white rounded-lg font-bold text-sm"
-                    >
-                        Ver Programação
-                    </button>
-                </div>
-            ) : (
-                <div className="space-y-8">
-                    {orderedDays.map(dayKey => (
-                        <div key={dayKey} className="animate-fade-in-up">
-                            <h3 className="text-sm font-bold uppercase tracking-widest text-[var(--primary)] mb-4 border-b border-[var(--border)] pb-2">
-                                {grouped[dayKey].label}
-                            </h3>
-                            
-                            <div className="space-y-4">
-                                {grouped[dayKey].items.map((item: AgendaItem) => (
-                                    <div key={item.id} className="relative flex gap-4">
-                                        {/* Coluna Horário */}
-                                        <div className="flex flex-col items-center min-w-[3.5rem] pt-1">
-                                            <span className="text-sm font-bold font-mono">{item.time}</span>
-                                            <div className="h-full w-px bg-[var(--border)] mt-2 mb-2" />
-                                        </div>
-
-                                        {/* Card */}
-                                        <div className="flex-1 bg-[var(--card)] rounded-xl border border-[var(--border)] p-4 relative overflow-hidden group">
-                                            {/* Faixa lateral colorida baseada no tipo */}
-                                            <div className={`absolute left-0 top-0 bottom-0 w-1 ${typeColors[item.tipoConteudo]?.split(' ')[0].replace('border-', 'bg-') || 'bg-gray-500'}`} />
-                                            
-                                            <div className="pl-2">
-                                                <div className="flex justify-between items-start mb-1">
-                                                    <span className="text-[10px] uppercase font-bold opacity-60">{item.tipoConteudo}</span>
-                                                    <button 
-                                                        onClick={() => toggleAgendaItem(item.id)}
-                                                        className="text-[var(--destructive)] opacity-0 group-hover:opacity-100 transition-opacity p-1"
-                                                    >
-                                                        <Trash2 size={16} />
-                                                    </button>
-                                                </div>
-                                                
-                                                <h4 className="font-bold text-lg leading-tight mb-2">{item.nome}</h4>
-                                                
-                                                <div className="flex items-center gap-3 text-xs text-[var(--muted-foreground)]">
-                                                    {item.track && (
-                                                        <span className="flex items-center gap-1 bg-[var(--secondary)] px-2 py-0.5 rounded">
-                                                            <MapPin size={10} /> {item.track}
-                                                        </span>
-                                                    )}
-                                                    {item.speakerNames.length > 0 && (
-                                                        <span>{item.speakerNames[0]} {item.speakerNames.length > 1 && `+${item.speakerNames.length - 1}`}</span>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    ))}
-                </div>
-            )}
-        </section>
+      <section className="flex flex-col items-center justify-center min-h-screen">
+        <Loader2 className="w-10 h-10 animate-spin mb-4 text-[var(--primary)]" />
+        <h2 className="text-xl font-bold">Organizando sua jornada…</h2>
+      </section>
     );
+  }
+
+  if (!user) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh]">
+        <Ticket size={48} className="mb-4 opacity-50" />
+        <h2 className="text-xl font-bold mb-2">Sua credencial digital</h2>
+        <p className="mb-6 opacity-70">
+          Faça login para montar sua agenda personalizada.
+        </p>
+        <button
+          onClick={() => navigate("/")}
+          className="bg-[var(--primary)] px-6 py-2 rounded-xl font-bold text-white"
+        >
+          Acessar conta
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <section className="pb-24 pt-8 px-4 max-w-3xl mx-auto min-h-screen">
+      <div className="flex justify-between items-end mb-10 border-b pb-6">
+        <div>
+          <h1 className="text-3xl font-bold">Minha Jornada</h1>
+          <p className="text-sm opacity-70">
+            {favorites.length} atividades selecionadas
+          </p>
+        </div>
+
+        <div className="flex gap-2">
+          <button className="flex items-center gap-2 px-4 py-2 text-xs font-bold border rounded-lg">
+            <Share2 size={14} /> Compartilhar
+          </button>
+
+          {favorites.length > 0 && (
+            <button
+              onClick={downloadAgendaPDF}
+              className="flex items-center gap-2 px-4 py-2 text-xs font-bold bg-[var(--primary)] text-white rounded-lg"
+            >
+              <Download size={14} />
+              Baixar PDF
+            </button>
+          )}
+        </div>
+      </div>
+
+      {favorites.length === 0 ? (
+        <div className="text-center py-20 border border-dashed rounded-3xl">
+          <Calendar size={48} className="mx-auto mb-4 opacity-30" />
+          <h3 className="text-xl font-bold mb-2">Nada por aqui ainda</h3>
+          <p className="mb-6 opacity-70">
+            Volte para a agenda completa e monte seu roteiro.
+          </p>
+          <button
+            onClick={() => navigate("/agenda")}
+            className="font-bold text-[var(--primary)]"
+          >
+            Ver programação completa →
+          </button>
+        </div>
+      ) : (
+        Object.entries(groupedByDay).map(([dayKey, items]) => (
+          <div key={dayKey} className="mb-10">
+            <h2 className="text-lg font-bold mb-4">
+              {items[0].dayLabel}
+            </h2>
+
+            <div className="space-y-4">
+              {items.map((item) => (
+                <div
+                  key={item.id}
+                  onClick={() => setSelected(item)}
+                  className="relative bg-[var(--card)] rounded-xl border p-4 cursor-pointer"
+                >
+                  <div
+                    className={`absolute left-0 top-0 bottom-0 w-1 ${typeColors[item.tipoConteudo]}`}
+                  />
+
+                  <div className="flex gap-4">
+                    <div className="font-mono font-bold">{item.time}</div>
+                    <div className="flex-1">
+                      <h3 className="font-bold">{item.nome}</h3>
+                      <div className="text-sm opacity-70">
+                        {item.speakerNames?.[0]}
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={(e) => removeFromAgenda(e, item.id)}
+                      className="text-red-500"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ))
+      )}
+
+      {/* MODAL */}
+      <AnimatePresence>
+        {selected && (
+          <div className="fixed inset-0 z-50 flex items-end justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setSelected(null)}
+              className="absolute inset-0 bg-black/60"
+            />
+
+            <motion.div
+              initial={{ y: 100 }}
+              animate={{ y: 0 }}
+              exit={{ y: 100 }}
+              className="relative bg-[var(--card)] rounded-2xl p-6 w-full max-w-lg"
+            >
+              <button
+                onClick={() => setSelected(null)}
+                className="absolute top-4 right-4"
+              >
+                <X />
+              </button>
+
+              <h3 className="text-xl font-bold mb-2">{selected.nome}</h3>
+              <p className="opacity-70 mb-4">
+                {selected.bigDescription || selected.description}
+              </p>
+
+              <button
+                onClick={(e) => removeFromAgenda(e, selected.id)}
+                className="w-full bg-red-500 text-white py-3 rounded-xl font-bold"
+              >
+                Remover da minha agenda
+              </button>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+    </section>
+  );
 }

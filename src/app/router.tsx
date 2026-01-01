@@ -1,12 +1,10 @@
 import { createBrowserRouter, Navigate } from "react-router-dom";
 
-// Imports das páginas
 import LoginPage from "./login/LoginPage";
 import AgendaPage from "./agenda/AgendaPage";
 import BingoPage from "./bingo/BingoPage";
 import MinhaAgendaPage from "./minha-agenda/MinhaAgendaPage";
 
-// Import do Layout (O "Envelope")
 import AppLayout from "../components/layout/AppLayout";
 
 export const router = createBrowserRouter([
@@ -28,7 +26,7 @@ export const router = createBrowserRouter([
       },
       {
         path: "/minha-agenda",
-        element: <MinhaAgendaPage />,
+      element: <MinhaAgendaPage />,
       },
     ],
   },

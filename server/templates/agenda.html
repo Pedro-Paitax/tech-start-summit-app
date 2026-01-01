@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <title>Minha Agenda</title>
+
+  <!-- FONTE -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap" rel="stylesheet">
+
+  <style>
+    * {
+      box-sizing: border-box;
+      font-family: "Inter", sans-serif;
+    }
+
+    body {
+      margin: 0;
+      padding: 48px;
+      width: 794px; /* A4 */
+      background: #0B0B0D;
+      color: #FFFFFF;
+    }
+
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 32px;
+    }
+
+    .logo {
+      width: 120px;
+      height: 40px;
+      background: #222;
+    }
+
+    .title {
+      font-size: 28px;
+      font-weight: 900;
+    }
+
+    .day {
+      margin-top: 32px;
+    }
+
+    .day-title {
+      font-size: 18px;
+      font-weight: 700;
+      margin-bottom: 16px;
+      border-bottom: 1px solid #222;
+      padding-bottom: 8px;
+    }
+
+    .item {
+      display: flex;
+      gap: 16px;
+      padding: 16px;
+      background: #111;
+      border-radius: 12px;
+      margin-bottom: 12px;
+    }
+
+    .time {
+      font-weight: 700;
+      width: 60px;
+    }
+
+    .content {
+      flex: 1;
+    }
+
+    .name {
+      font-weight: 700;
+      font-size: 14px;
+    }
+
+    .speaker {
+      font-size: 12px;
+      opacity: 0.7;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="header">
+    <div class="title">Minha Jornada</div>
+    <div class="logo">
+      <!-- SVG LOGO AQUI -->
+    </div>
+  </div>
+
+  <!-- {{CONTENT}} -->
+</body>
+</html>

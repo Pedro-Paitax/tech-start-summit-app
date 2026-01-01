@@ -100,7 +100,6 @@ export default function AppLayout() {
               )}
             </div>
           ) : (
-            // === USUÁRIO NÃO LOGADO (Novo Código) ===
             <button 
               onClick={() => navigate("/login")}
               className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-[var(--primary)]/10 text-[var(--primary)] border border-[var(--primary)]/20 hover:bg-[var(--primary)] hover:text-white transition-all text-xs font-bold uppercase tracking-wide"
