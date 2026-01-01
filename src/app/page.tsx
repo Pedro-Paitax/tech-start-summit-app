@@ -1,12 +1,12 @@
 "use client";
 
-import { useState, type ChangeEvent, type FormEvent } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useEffect, type ChangeEvent, type FormEvent } from "react";
+import { useRouter } from "next/navigation";
 import { signInWithEmailAndPassword } from "firebase/auth";
-import { auth } from "../lib/firebase"; // Ajuste o caminho conforme sua estrutura
-import { ArrowRight, Ticket, Calendar, Gamepad2 } from "lucide-react";
+import { auth } from "./lib/firebase";
+import { ArrowRight, Ticket, Calendar, Gamepad2, Loader2 } from "lucide-react";
+import { useUser } from "@/contexts/useUser";
 
-// Função para formatar o CPF visualmente (000.000.000-00)
 const formatCPF = (value: string) => {
   return value
     .replace(/\D/g, "")
@@ -17,14 +17,20 @@ const formatCPF = (value: string) => {
 };
 
 export default function LoginPage() {
+  const { user, isLoading: isAuthLoading } = useUser();
   const [email, setEmail] = useState("");
   const [cpf, setCpf] = useState("");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
-  const navigate = useNavigate();
+  const router = useRouter();
 
-  // Atualiza o CPF aplicando a máscara
+  useEffect(() => {
+    if (!isAuthLoading && user) {
+      router.push("/agenda");
+    }
+  }, [user, isAuthLoading, router]);
+
   const handleCpfChange = (e: ChangeEvent<HTMLInputElement>) => {
     const formatted = formatCPF(e.target.value);
     setCpf(formatted);
@@ -42,19 +48,14 @@ export default function LoginPage() {
     }
 
     try {
-      // Remove a pontuação para enviar ao Firebase como senha (ex: 12345678900)
       const cpfLimpo = cpf.replace(/\D/g, "");
-
-      // Autentica. O UserProvider detectará a mudança de estado automaticamente.
       await signInWithEmailAndPassword(auth, email, cpfLimpo);
-
-      navigate("/agenda");
+      router.push("/agenda");
     } catch (err: unknown) {
-      const error = err as { code: string }; 
+      const error = err as { code: string };
 
       console.error("Erro no login:", err);
-      
-      // Tratamento de erros comuns para feedback visual melhor
+
       if (error.code === 'auth/invalid-credential' || error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
         setError("Dados inválidos. Verifique e-mail e CPF.");
       } else if (error.code === 'auth/too-many-requests') {
@@ -68,8 +69,16 @@ export default function LoginPage() {
   };
 
   const handleNavigation = (path: string) => {
-    navigate(path);
+    router.push(path);
   };
+
+  if (isAuthLoading || user) {
+    return (
+      <div className="min-h-screen w-full flex items-center justify-center bg-[var(--background)]">
+        <Loader2 className="w-10 h-10 animate-spin text-[var(--primary)]" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen w-full flex flex-col items-center justify-center px-6 relative overflow-hidden bg-[var(--background)] text-[var(--foreground)]">
@@ -87,8 +96,6 @@ export default function LoginPage() {
         <div className="w-full bg-[var(--card)]/50 backdrop-blur-sm border border-[var(--border)] rounded-2xl p-6 shadow-2xl">
           <form onSubmit={handleLogin} className="flex flex-col gap-4">
             <div className="space-y-4">
-              
-              {/* INPUT DE CPF */}
               <div>
                 <label className="text-xs font-semibold text-[var(--muted-foreground)] ml-1 mb-1 block uppercase tracking-wider">
                   CPF
@@ -103,7 +110,6 @@ export default function LoginPage() {
                 />
               </div>
 
-              {/* INPUT DE EMAIL */}
               <div>
                 <label className="text-xs font-semibold text-[var(--muted-foreground)] ml-1 mb-1 block uppercase tracking-wider">
                   E-mail

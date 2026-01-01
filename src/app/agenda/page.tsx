@@ -3,8 +3,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { User, Clock, X, MapPin, CalendarDays, Star, Layers, Target, Hash, CheckCircle2, Trash2, Loader2, MousePointerClick, ChevronRight } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { User, Building2, Clock, X, MapPin, CalendarDays, Star, Layers, Target, Hash, CheckCircle2, Trash2, Loader2, MousePointerClick, ChevronRight } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useUser } from "../../contexts/useUser";
 import { db } from "../lib/firebase";
 import { doc, updateDoc, arrayUnion, arrayRemove, onSnapshot, setDoc } from "firebase/firestore";
@@ -20,6 +20,7 @@ interface AgendaItem {
   description?: string;
   bigDescription?: string;
   speakerNames?: string[];
+  presenters?: { name: string; type: 'person' | 'company' }[];
   publico?: string;
   area?: string[];
   topics?: string;
@@ -46,7 +47,7 @@ const getAreaColor = (area: string) => {
 
 export default function AgendaPage() {
   const { user } = useUser();
-  const navigate = useNavigate();
+  const router = useRouter(); 
 
   const [selected, setSelected] = useState<AgendaItem | null>(null);
   const [activeDay, setActiveDay] = useState<string | null>(null);
@@ -76,7 +77,7 @@ export default function AgendaPage() {
   const { data: items = [], isLoading } = useQuery({
     queryKey: ["agenda"],
     queryFn: async () => {
-      const res = await fetch("http://localhost:3333/agenda");
+      const res = await fetch("/api/agenda");
       if (!res.ok) throw new Error("Erro ao carregar agenda");
       return res.json() as Promise<AgendaItem[]>;
     },
@@ -86,7 +87,7 @@ export default function AgendaPage() {
 
   const toggleInterest = async (itemId: string) => {
     if (!user?.uid) {
-      navigate("/");
+      router.push("/");
       return;
     }
 
@@ -172,6 +173,7 @@ export default function AgendaPage() {
         )}
       </div>
 
+      {/* NÃO COLOCAR OVERFLOW-X-AUTO AQUI PELO AMOR DE DEUS */}
       <div className="sticky top-0 z-30 bg-[var(--background)]/95 backdrop-blur pt-2 pb-4 border-b border-[var(--border)] mb-8">
         <div className="flex gap-3 pb-2">
           {orderedDays.map((dayKey) => {
@@ -279,31 +281,39 @@ export default function AgendaPage() {
                         {item.nome}
                       </h4>
 
-                      {item.speakerNames && item.speakerNames.length > 0 && (
-                        <div className="flex items-center gap-2 text-sm text-[var(--muted-foreground)] mb-4">
-                          <User size={14} className="text-[var(--primary)]" />
-                          <span>{item.speakerNames.join(", ")}</span>
+                      {item.presenters && item.presenters.length > 0 && (
+                        <div className="flex flex-col gap-1 mb-4">
+                          {item.presenters.map((presenter, idx) => (
+                            <div key={idx} className="flex items-center gap-2 text-sm text-[var(--muted-foreground)]">
+                              {presenter.type === 'company' ? (
+                                <Building2 size={14} className="text-[var(--primary)]" />
+                              ) : (
+                                <User size={14} className="text-[var(--primary)]" />
+                              )}
+                              <span>{presenter.name}</span>
+                            </div>
+                          ))}
                         </div>
                       )}
 
                       <div className="mt-auto pt-3 border-t border-[var(--border)] flex flex-wrap gap-2 items-center justify-between">
-                         <div className="flex flex-wrap gap-2">
-                            {item.publico && (
+                        <div className="flex flex-wrap gap-2">
+                          {item.publico && (
                             <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-bold bg-slate-800 text-white">
-                                <Target size={10} />
-                                {item.publico}
+                              <Target size={10} />
+                              {item.publico}
                             </span>
-                            )}
-                            {item.area?.map((areaName, idx) => (
+                          )}
+                          {item.area?.map((areaName, idx) => (
                             <span key={idx} className={`px-2 py-1 rounded-md text-[10px] font-medium border ${getAreaColor(areaName)}`}>
-                                {areaName}
+                              {areaName}
                             </span>
-                            ))}
-                         </div>
-                         
-                         <span className="text-xs text-[var(--primary)] font-bold opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
-                           Ver detalhes <ChevronRight size={12} />
-                         </span>
+                          ))}
+                        </div>
+
+                        <span className="text-xs text-[var(--primary)] font-bold opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
+                          Ver detalhes <ChevronRight size={12} />
+                        </span>
                       </div>
                     </motion.div>
                   );
@@ -323,7 +333,7 @@ export default function AgendaPage() {
 
       <AnimatePresence>
         {selected && (
-          <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center p-4 sm:p-6">
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 sm:p-6">
             <motion.div
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
               onClick={() => setSelected(null)}
@@ -331,9 +341,9 @@ export default function AgendaPage() {
             />
 
             <motion.div
-              initial={{ opacity: 0, y: 100, scale: 0.95 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 100, scale: 0.95 }}
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
               className="relative w-full max-w-lg bg-[var(--card)] border border-[var(--border)] rounded-2xl shadow-2xl overflow-hidden max-h-[85vh] flex flex-col"
             >
               <div className="p-6 border-b border-[var(--border)] bg-[var(--background)]/50 relative">
@@ -392,22 +402,40 @@ export default function AgendaPage() {
                   </div>
                 )}
 
-                {selected.speakerNames && selected.speakerNames.length > 0 && (
+                {(selected.presenters && selected.presenters.length > 0) ? (
                   <div>
                     <h4 className="text-xs font-bold uppercase tracking-wider text-[var(--muted-foreground)] mb-3">
-                      Quem vai falar
+                      {selected.presenters.some(p => p.type === 'company') ? "Quem vai apresentar" : "Quem vai falar"}
                     </h4>
                     <div className="grid gap-3">
-                      {selected.speakerNames.map(name => (
-                        <div key={name} className="flex items-center gap-3 p-3 rounded-xl border border-[var(--border)] bg-[var(--input)]/10 hover:bg-[var(--input)]/30 transition">
+                      {selected.presenters.map((presenter, idx) => (
+                        <div key={idx} className="flex items-center gap-3 p-3 rounded-xl border border-[var(--border)] bg-[var(--input)]/10 hover:bg-[var(--input)]/30 transition">
                           <div className="w-8 h-8 rounded-full bg-[var(--primary)]/20 flex items-center justify-center text-[var(--primary)]">
-                            <User size={16} />
+                            {presenter.type === 'company' ? <Building2 size={16} /> : <User size={16} />}
                           </div>
-                          <span className="font-medium">{name}</span>
+                          <span className="font-medium">{presenter.name}</span>
                         </div>
                       ))}
                     </div>
                   </div>
+                ) : (
+                  selected.speakerNames && selected.speakerNames.length > 0 && (
+                    <div>
+                        <h4 className="text-xs font-bold uppercase tracking-wider text-[var(--muted-foreground)] mb-3">
+                          Quem vai falar
+                        </h4>
+                        <div className="grid gap-3">
+                        {selected.speakerNames.map(name => (
+                            <div key={name} className="flex items-center gap-3 p-3 rounded-xl border border-[var(--border)] bg-[var(--input)]/10 hover:bg-[var(--input)]/30 transition">
+                            <div className="w-8 h-8 rounded-full bg-[var(--primary)]/20 flex items-center justify-center text-[var(--primary)]">
+                                <User size={16} />
+                            </div>
+                            <span className="font-medium">{name}</span>
+                            </div>
+                        ))}
+                        </div>
+                    </div>
+                  )
                 )}
 
                 {selected.tags && selected.tags.length > 0 && (
@@ -464,7 +492,7 @@ export default function AgendaPage() {
 
       <AnimatePresence>
         {showInterestModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
+          <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4 sm:p-6">
             <motion.div
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
               onClick={() => setShowInterestModal(false)}

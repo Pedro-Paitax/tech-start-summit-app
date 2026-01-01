@@ -10,7 +10,7 @@ import {
   X, User, Mail, Linkedin, Github, 
   School, Briefcase, Shirt, LogOut, 
   ChevronDown, Save, Loader2, Phone, FileBadge,
-  CheckCircle2, AlertCircle, RefreshCw // <--- Ícone Novo
+  CheckCircle2, AlertCircle, RefreshCw, AlertTriangle
 } from "lucide-react";
 
 interface ProfileDrawerProps {
@@ -21,17 +21,18 @@ interface ProfileDrawerProps {
 type FeedbackType = {
   type: 'success' | 'error';
   message: string;
+  shouldReload?: boolean;
 } | null;
 
-export default function ProfileDrawer({ isOpen, onClose }: ProfileDrawerProps) {
+export function ProfileDrawer({ isOpen, onClose }: ProfileDrawerProps) {
   const { userData, user } = useUser();
   
   const [formData, setFormData] = useState<any>({});
   const [isExpanded, setIsExpanded] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [feedback, setFeedback] = useState<FeedbackType>(null);
+  const [showResetConfirmation, setShowResetConfirmation] = useState(false);
 
-  // Sincroniza dados
   useEffect(() => {
     if (userData) {
       setFormData({
@@ -65,44 +66,49 @@ export default function ProfileDrawer({ isOpen, onClose }: ProfileDrawerProps) {
       await updateDoc(userRef, formData);
       setFeedback({ type: 'success', message: "Perfil atualizado com sucesso!" });
     } catch (error) {
-      console.error("Erro ao salvar:", error);
+      console.error(error);
       setFeedback({ type: 'error', message: "Não foi possível salvar as alterações." });
     } finally {
       setIsSaving(false);
     }
   };
 
-  // --- NOVA FUNÇÃO: RESETAR CARTELA ---
-  const handleResetCard = async () => {
+  const handleResetClick = () => {
+    setShowResetConfirmation(true);
+  };
+
+  const confirmReset = async () => {
     if (!user) return;
     
-    // Confirmação nativa é mais segura para ações destrutivas rápidas
-    const confirmed = window.confirm(
-        "⚠️ ATENÇÃO: Você perderá todo o progresso atual!\n\nTem certeza que deseja apagar sua cartela e gerar uma nova baseada nos seus favoritos atuais?"
-    );
-
-    if (!confirmed) return;
-
+    setShowResetConfirmation(false);
     setIsSaving(true);
+    
     try {
         const userRef = doc(db, "users", user.uid);
-        // Limpa os dados do bingo no banco
         await updateDoc(userRef, {
-            bingo_cards: [],     // Array vazio para forçar regeneração
-            bingo_progress: []   // Zera os checks
+            bingo_cards: [],     
+            bingo_progress: []   
         });
 
-        alert("Cartela resetada com sucesso! A página será recarregada.");
-        window.location.reload(); // Recarrega para gerar a nova
+        setFeedback({ 
+            type: 'success', 
+            message: "Cartela resetada! Clique em OK para recarregar a página.",
+            shouldReload: true 
+        });
 
     } catch (error) {
-        console.error("Erro ao resetar:", error);
+        console.error(error);
         setFeedback({ type: 'error', message: "Erro ao resetar a cartela." });
         setIsSaving(false);
     }
   };
 
   const handleCloseFeedback = () => {
+    if (feedback?.shouldReload) {
+        window.location.reload();
+        return;
+    }
+
     if (feedback?.type === 'success') {
       setFeedback(null);
       onClose();
@@ -174,9 +180,9 @@ export default function ProfileDrawer({ isOpen, onClose }: ProfileDrawerProps) {
 
               <div className="space-y-3 mb-4">
                  <InputRow icon={User} label="Nome Completo" field="nomeCompleto" placeholder="Seu nome" />
-                 <InputRow icon={Mail} label="E-mail (Não editável)" field="email" disabled />
+                 <InputRow icon={Mail} label="E-mail" field="email" disabled />
                  <InputRow icon={Phone} label="Telefone / WhatsApp" field="telefone" placeholder="(00) 00000-0000" />
-                 <InputRow icon={FileBadge} label="CPF (Não editável)" field="cpf" disabled />
+                 <InputRow icon={FileBadge} label="CPF" field="cpf" disabled />
               </div>
 
               <button 
@@ -216,13 +222,12 @@ export default function ProfileDrawer({ isOpen, onClose }: ProfileDrawerProps) {
                 )}
               </AnimatePresence>
 
-              {/* ZONA DE PERIGO (RESET BINGO) */}
               <div className="mt-8 pt-6 border-t border-[var(--border)] border-dashed">
                  <p className="text-[10px] font-bold text-red-500 uppercase tracking-widest mb-3 text-center">
                     Zona de Perigo
                  </p>
                  <button
-                    onClick={handleResetCard}
+                    onClick={handleResetClick}
                     disabled={isSaving}
                     className="w-full flex items-center justify-center gap-2 border border-red-500/30 hover:bg-red-500/10 text-red-500 font-bold py-3 rounded-xl transition-all text-xs"
                  >
@@ -260,10 +265,56 @@ export default function ProfileDrawer({ isOpen, onClose }: ProfileDrawerProps) {
       )}
     </AnimatePresence>
 
-    {/* MODAL DE FEEDBACK */}
+    <AnimatePresence>
+      {showResetConfirmation && (
+        <div className="fixed inset-0 z-[10001] flex items-center justify-center p-4">
+          <motion.div 
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+            onClick={() => setShowResetConfirmation(false)}
+          />
+          
+          <motion.div 
+            initial={{ scale: 0.9, opacity: 0 }} 
+            animate={{ scale: 1, opacity: 1 }} 
+            exit={{ scale: 0.9, opacity: 0 }}
+            className="relative bg-[var(--card)] w-full max-w-xs p-6 rounded-2xl border border-[var(--border)] shadow-2xl flex flex-col items-center text-center"
+          >
+            <div className="w-16 h-16 rounded-full flex items-center justify-center mb-4 bg-red-500/10 text-red-500">
+              <AlertTriangle size={32} />
+            </div>
+
+            <h3 className="text-lg font-black uppercase mb-2">
+              Tem certeza?
+            </h3>
+
+            <p className="text-sm text-[var(--muted-foreground)] mb-6 leading-relaxed">
+              Você perderá todo o progresso atual e seus checks. Uma nova cartela será gerada com base nos seus favoritos atuais.
+            </p>
+
+            <div className="flex flex-col gap-2 w-full">
+              <button 
+                onClick={confirmReset}
+                className="w-full font-bold py-3 rounded-xl transition-all bg-red-500 hover:bg-red-600 text-white shadow-lg shadow-red-500/20"
+              >
+                SIM, RESETAR TUDO
+              </button>
+              <button 
+                onClick={() => setShowResetConfirmation(false)}
+                className="w-full font-bold py-3 rounded-xl transition-all bg-[var(--secondary)] hover:bg-[var(--secondary)]/80 text-[var(--foreground)]"
+              >
+                CANCELAR
+              </button>
+            </div>
+
+          </motion.div>
+        </div>
+      )}
+    </AnimatePresence>
+
     <AnimatePresence>
       {feedback && (
-        <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[10002] flex items-center justify-center p-4">
           <motion.div 
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             className="absolute inset-0 bg-black/70 backdrop-blur-sm"

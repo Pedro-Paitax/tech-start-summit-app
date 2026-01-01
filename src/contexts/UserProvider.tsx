@@ -1,124 +1,93 @@
-"use client"
+"use client";
 
-import { useEffect, useState } from "react"
-import {
-  setPersistence,
-  browserLocalPersistence,
-  onAuthStateChanged,
-  signOut,
-} from "firebase/auth"
-import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore"
+import { useEffect, useState, ReactNode } from "react";
+import { UserContext, UserData } from "./UserContext";
+import { auth, db } from "../app/lib/firebase"; // Ajuste o caminho conforme sua estrutura
+import { onAuthStateChanged, signOut, User as FirebaseUser } from "firebase/auth";
+import { doc, onSnapshot, updateDoc, arrayUnion, arrayRemove, setDoc } from "firebase/firestore";
+import { useRouter } from "next/navigation";
 
-import { auth, db } from "../app/lib/firebase"
-import { UserContext } from "./UserContext"
-import type { FirestoreUser } from "../types/userType"
-import { motion } from "framer-motion"
-
-export function UserProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<FirestoreUser | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
+export function UserProvider({ children }: { children: ReactNode }) {
+  const [user, setUser] = useState<FirebaseUser | null>(null);
+  const [userData, setUserData] = useState<UserData | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const router = useRouter();
 
   useEffect(() => {
-  async function initAuth() {
-        console.log("[Auth] Inicializando persistência")
+    // Escuta mudanças na autenticação (Login/Logout)
+    const unsubscribeAuth = onAuthStateChanged(auth, async (currentUser) => {
+      setUser(currentUser);
+
+      if (currentUser) {
+        // Se tem usuário, vamos buscar/escutar os dados do Firestore
+        const userDocRef = doc(db, "users", currentUser.uid);
+
+        // onSnapshot cria uma conexão em tempo real. Se mudar no banco, muda na tela na hora.
+        const unsubscribeFirestore = onSnapshot(userDocRef, async (docSnap) => {
+          if (docSnap.exists()) {
+            // Se o documento existe, seta os dados
+            setUserData(docSnap.data() as UserData);
+          } else {
+            // Se o usuário logou mas não tem documento no 'users' (ex: primeiro login), criamos um básico
+            const initialData: UserData = {
+              uid: currentUser.uid,
+              email: currentUser.email || "",
+              nomeCompleto: currentUser.displayName || "Usuário",
+              profileCompleted: false,
+              agenda_favorites: []
+            };
+            await setDoc(userDocRef, initialData);
+            setUserData(initialData);
+          }
+          setIsLoading(false);
+        }, (error) => {
+          console.error("Erro ao buscar dados do usuário:", error);
+          setIsLoading(false);
+        });
+
+        // Cleanup da subscrição do Firestore ao desmontar ou mudar user
+        return () => unsubscribeFirestore();
+      } else {
+        // Se deslogou
+        setUserData(null);
+        setIsLoading(false);
+      }
+    });
+
+    return () => unsubscribeAuth();
+  }, []);
+
+  const logout = async () => {
+    await signOut(auth);
+    setUser(null);
+    setUserData(null);
+    router.push("/");
+  };
+
+  const toggleAgendaItem = async (talkId: string) => {
+    if (!user || !userData) return;
+
+    const userRef = doc(db, "users", user.uid);
+    const isFavorite = userData.agenda_favorites?.includes(talkId);
 
     try {
-      await setPersistence(auth, browserLocalPersistence)
-            console.log("[Auth] Persistência aplicada com sucesso")
-
+      if (isFavorite) {
+        await updateDoc(userRef, {
+          agenda_favorites: arrayRemove(talkId)
+        });
+      } else {
+        await updateDoc(userRef, {
+          agenda_favorites: arrayUnion(talkId)
+        });
+      }
     } catch (error) {
-      console.error("Erro ao definir persistência:", error)
+      console.error("Erro ao favoritar item:", error);
     }
-
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-            console.log("[Auth] onAuthStateChanged chamado", firebaseUser)
-
-      if (!firebaseUser) {
-                console.log("[Auth] Usuário não encontrado")
-
-        setUser(null)
-        setIsLoading(false)
-        return
-      }
-
-            console.log("[Auth] Usuário encontrado:", firebaseUser.uid)
-
-
-      const userRef = doc(db, "users", firebaseUser.uid)
-      const snapshot = await getDoc(userRef)
-
-      if (!snapshot.exists()) {
-                console.log("[Auth] Criando documento do usuário")
-        await setDoc(userRef, {
-          nomeCompleto: "",
-          email: firebaseUser.email,
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp(),
-          profileCompleted: false,
-        })
-      }
-
-      const userData = (await getDoc(userRef)).data() as FirestoreUser
-            console.log("[Auth] userData carregado:", userData)
-
-
-      setUser({
-        ...userData,
-        uid: firebaseUser.uid,
-      })
-
-      setIsLoading(false)
-    })
-
-    return () => unsubscribe()
-  }
-
-  initAuth()
-}, [])
-
-  async function logout() {
-    await signOut(auth)
-    setUser(null)
-  }
-
-  if (isLoading) {
-    return (
-      <section className="flex flex-col items-center justify-center min-h-screen px-4">
-        <motion.div
-          animate={{ rotate: 360 }}
-          transition={{ repeat: Infinity, duration: 1 }}
-          className="w-16 h-16 border-4 border-[var(--primary)] border-t-transparent rounded-full mb-6"
-        />
-        <h2 className="text-2xl font-bold text-[var(--foreground)] mb-2">Carregando Usuário...</h2>
-        <p className="text-[var(--muted-foreground)] text-center max-w-xs">
-          Aguarde enquanto verificamos seu usuário.
-        </p>
-      </section>
-    )
-  }
+  };
 
   return (
-    <UserContext.Provider
-      value={{
-        user,
-        isLoading,
-        logout,
-        login: (userData) => setUser(userData),
-        toggleAgendaItem: (talkId: string) => {
-          if (!user) return
-          setUser((prev) => {
-            if (!prev) return null
-            const agenda = prev.agenda || []
-            const exists = agenda.includes(talkId)
-            return {
-              ...prev,
-              agenda: exists ? agenda.filter((id) => id !== talkId) : [...agenda, talkId],
-            }
-          })
-        },
-      }}
-    >
+    <UserContext.Provider value={{ user, userData, isLoading, logout, toggleAgendaItem }}>
       {children}
     </UserContext.Provider>
-  )
+  );
 }
