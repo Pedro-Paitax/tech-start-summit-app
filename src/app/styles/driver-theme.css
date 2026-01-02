@@ -1,0 +1,60 @@
+.driver-popover {
+  background: var(--card) !important;
+  color: var(--foreground) !important;
+  border-radius: 16px !important;
+  border: 1px solid var(--border) !important;
+  box-shadow: 0 20px 40px rgba(0,0,0,0.4) !important;
+  padding: 16px !important;
+  max-width: 320px;
+  font-family: inherit;
+}
+
+.driver-popover-title {
+  font-weight: 900 !important;
+  text-transform: uppercase;
+  font-size: 14px !important;
+  color: var(--primary) !important;
+  letter-spacing: 0.05em;
+}
+
+.driver-popover-description {
+  font-size: 13px;
+  color: var(--muted-foreground) !important;
+  line-height: 1.5;
+  margin-top: 6px;
+}
+
+.driver-popover-footer button {
+  border-radius: 10px !important;
+  font-weight: 700;
+  padding: 8px 14px;
+}
+
+.driver-next-btn {
+  background: var(--primary) !important;
+  color: white !important;
+  border: none !important;
+}
+
+.driver-prev-btn {
+  background: transparent !important;
+  color: var(--muted-foreground) !important;
+}
+
+.driver-done-btn {
+  background: var(--primary) !important;
+  color: white !important;
+}
+
+.driver-progress {
+  background: var(--secondary) !important;
+}
+
+.driver-progress-bar {
+  background: var(--primary) !important;
+}
+
+.driver-overlay {
+  background: rgba(0,0,0,0.75) !important;
+  backdrop-filter: blur(4px);
+}

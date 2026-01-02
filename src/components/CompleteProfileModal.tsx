@@ -3,311 +3,371 @@
 import { useState, useEffect } from "react";
 import { useUser } from "../contexts/useUser";
 import { auth, db } from "../app/lib/firebase";
-import { signOut } from "firebase/auth";
 import { doc, updateDoc } from "firebase/firestore";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
-  X, User, Mail, Linkedin, Github, 
-  School, Briefcase, Shirt, LogOut, 
-  ChevronDown, Save, Loader2, Phone, FileBadge,
-  CheckCircle2, AlertCircle, RefreshCw // <--- Ícone Novo
+  User, Briefcase, GraduationCap, Shirt, 
+  Save, Loader2, AlertCircle, Sparkles, Check
 } from "lucide-react";
 
-interface ProfileDrawerProps {
+interface CompleteProfileModalProps {
   isOpen: boolean;
   onClose: () => void;
 }
 
-type FeedbackType = {
-  type: 'success' | 'error';
-  message: string;
-} | null;
-
-export default function ProfileDrawer({ isOpen, onClose }: ProfileDrawerProps) {
+export default function CompleteProfileModal({ isOpen, onClose }: CompleteProfileModalProps) {
   const { userData, user } = useUser();
-  
-  const [formData, setFormData] = useState<any>({});
-  const [isExpanded, setIsExpanded] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
-  const [feedback, setFeedback] = useState<FeedbackType>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
-  // Sincroniza dados
-  useEffect(() => {
-    if (userData) {
-      setFormData({
-        nomeCompleto: userData.nomeCompleto || "",
-        senioridade: userData.senioridade || "",
-        instituicao: userData.instituicao || "",
-        curso: userData.curso || "",
-        tamanhoCamiseta: userData.tamanhoCamiseta || "",
-        linkedin: userData.linkedin || "",
-        github: userData.github || "",
-        telefone: userData.telefone || "",
-        cpf: userData.cpf || ""
-      });
-    }
-  }, [userData, isOpen]);
+  const [formData, setFormData] = useState({
+    apelido: "",
+    senioridade: "Júnior",
+    areaInteresse: "Frontend",
+    situacaoAtual: "Estudante",
 
-  const handleLogout = async () => {
-    await signOut(auth);
-    window.location.href = "/login";
+    linkedin: "",
+    github: "",
+
+    instituicao: "",
+    curso: "",
+    semestre: "1",
+
+    tamanhoCamiseta: "M",
+    usoImagem: false,
+    compartilhamento: false
+  });
+
+useEffect(() => {
+  if (!userData) return;
+
+  setFormData(prev => ({
+    ...prev,
+
+    nomeCompleto:
+      typeof userData.nomeCompleto === "string"
+        ? userData.nomeCompleto
+        : typeof userData.nome === "string"
+        ? userData.nome
+        : "",
+
+    apelido: typeof userData.apelido === "string" ? userData.apelido : "",
+    idade: typeof userData.idade === "string" ? userData.idade : "",
+    telefone: typeof userData.telefone === "string" ? userData.telefone : "",
+    cpf: typeof userData.cpf === "string" ? userData.cpf : "",
+
+    senioridade:
+      typeof userData.senioridade === "string"
+        ? userData.senioridade
+        : "Júnior",
+
+    areaInteresse:
+      typeof userData.areaInteresse === "string"
+        ? userData.areaInteresse
+        : "Frontend",
+
+    situacaoAtual:
+      typeof userData.situacaoAtual === "string"
+        ? userData.situacaoAtual
+        : "Estudante",
+
+    linkedin: typeof userData.linkedin === "string" ? userData.linkedin : "",
+    github: typeof userData.github === "string" ? userData.github : "",
+    instituicao: typeof userData.instituicao === "string" ? userData.instituicao : "",
+    curso: typeof userData.curso === "string" ? userData.curso : "",
+    semestre: typeof userData.semestre === "string" ? userData.semestre : "1",
+
+    tamanhoCamiseta:
+      typeof userData.tamanhoCamiseta === "string"
+        ? userData.tamanhoCamiseta
+        : "M",
+
+    usoImagem: Boolean(userData.usoImagem),
+    compartilhamento: Boolean(userData.compartilhamento),
+  }));
+}, [userData]);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value, type } = e.target;
+    const checked = (e.target as HTMLInputElement).checked;
+    
+    setFormData(prev => ({
+      ...prev,
+      [name]: type === 'checkbox' ? checked : value
+    }));
   };
 
-  const handleChange = (field: string, value: string) => {
-    setFormData((prev: any) => ({ ...prev, [field]: value }));
+  const handleManualChange = (name: string, value: any) => {
+    setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleSave = async () => {
-    if (!user) return;
-    setIsSaving(true);
-    try {
-      const userRef = doc(db, "users", user.uid);
-      await updateDoc(userRef, formData);
-      setFeedback({ type: 'success', message: "Perfil atualizado com sucesso!" });
-    } catch (error) {
-      console.error("Erro ao salvar:", error);
-      setFeedback({ type: 'error', message: "Não foi possível salvar as alterações." });
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  // --- NOVA FUNÇÃO: RESETAR CARTELA ---
-  const handleResetCard = async () => {
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
     if (!user) return;
     
-    // Confirmação nativa é mais segura para ações destrutivas rápidas
-    const confirmed = window.confirm(
-        "⚠️ ATENÇÃO: Você perderá todo o progresso atual!\n\nTem certeza que deseja apagar sua cartela e gerar uma nova baseada nos seus favoritos atuais?"
-    );
+    if (!formData.apelido) {
+        setError("Por favor, preencha os campos obrigatórios.");
+        return;
+    }
 
-    if (!confirmed) return;
+    setLoading(true);
+    setError("");
 
-    setIsSaving(true);
     try {
-        const userRef = doc(db, "users", user.uid);
-        // Limpa os dados do bingo no banco
-        await updateDoc(userRef, {
-            bingo_cards: [],     // Array vazio para forçar regeneração
-            bingo_progress: []   // Zera os checks
-        });
+      const userRef = doc(db, "users", user.uid);
+      
+      const payload = {
+        ...formData,
+        profileCompleted: true,
+        updatedAt: new Date().toISOString()
+      };
 
-        alert("Cartela resetada com sucesso! A página será recarregada.");
-        window.location.reload(); // Recarrega para gerar a nova
+      await updateDoc(userRef, payload);
+      
+      setTimeout(() => {
+          onClose();
+      }, 1000);
 
-    } catch (error) {
-        console.error("Erro ao resetar:", error);
-        setFeedback({ type: 'error', message: "Erro ao resetar a cartela." });
-        setIsSaving(false);
+    } catch (err) {
+      console.error("Erro ao salvar:", err);
+      setError("Erro ao salvar dados. Tente novamente.");
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleCloseFeedback = () => {
-    if (feedback?.type === 'success') {
-      setFeedback(null);
-      onClose();
-    } else {
-      setFeedback(null);
-    }
-  };
-
-  const InputRow = ({ icon: Icon, label, field, placeholder, disabled = false }: any) => (
-    <div className="flex items-center gap-3 p-3 rounded-xl bg-[var(--secondary)]/30 border border-[var(--border)] focus-within:border-[var(--primary)] focus-within:bg-[var(--secondary)] transition-all">
-      <div className="text-[var(--primary)]">
-        <Icon size={18} />
-      </div>
-      <div className="flex-1">
-        <p className="text-[10px] font-bold text-[var(--muted-foreground)] uppercase tracking-wider mb-0.5">
-          {label}
-        </p>
-        <input 
-          type="text"
-          disabled={disabled}
-          value={formData[field] || (disabled ? user?.email : "")}
-          onChange={(e) => handleChange(field, e.target.value)}
-          placeholder={placeholder}
-          className="w-full bg-transparent outline-none text-sm font-medium text-[var(--foreground)] placeholder:text-[var(--muted-foreground)]/50 disabled:opacity-50 disabled:cursor-not-allowed"
-        />
-      </div>
-    </div>
-  );
+  if (!isOpen) return null;
 
   return (
-    <>
     <AnimatePresence>
       {isOpen && (
-        <>
-          <motion.div
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            onClick={onClose}
-            className="fixed inset-0 bg-black/60 z-[9998] backdrop-blur-sm"
-          />
-
-          <motion.div
-            initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }}
-            transition={{ type: "spring", damping: 25, stiffness: 200 }}
-            className="fixed top-0 right-0 bottom-0 w-full max-w-md bg-[var(--card)] z-[9999] shadow-2xl border-l border-[var(--border)] flex flex-col"
-          >
-            <div className="p-6 border-b border-[var(--border)] flex items-center justify-between bg-[var(--background)]">
-              <h2 className="text-xl font-black uppercase tracking-tight flex items-center gap-2">
-                <User className="text-[var(--primary)]" />
-                Meu Perfil
-              </h2>
-              <button onClick={onClose} className="p-2 hover:bg-[var(--secondary)] rounded-full transition-colors">
-                <X size={20} />
-              </button>
-            </div>
-
-            <div className="flex-1 overflow-y-auto p-6">
-              
-              <div className="flex flex-col items-center justify-center mb-6">
-                <div className="w-24 h-24 rounded-full bg-[var(--secondary)] border-4 border-[var(--background)] shadow-xl flex items-center justify-center text-3xl font-black text-[var(--primary)] mb-3 relative group">
-                    {formData.nomeCompleto?.charAt(0) || user?.email?.charAt(0)}
-                    <div className="absolute bottom-0 right-0 bg-[var(--primary)] p-1.5 rounded-full border-2 border-[var(--background)]">
-                        <User size={12} className="text-white"/>
-                    </div>
-                </div>
-                <p className="text-xs text-[var(--muted-foreground)]">
-                  {user?.email}
-                </p>
-              </div>
-
-              <div className="space-y-3 mb-4">
-                 <InputRow icon={User} label="Nome Completo" field="nomeCompleto" placeholder="Seu nome" />
-                 <InputRow icon={Mail} label="E-mail (Não editável)" field="email" disabled />
-                 <InputRow icon={Phone} label="Telefone / WhatsApp" field="telefone" placeholder="(00) 00000-0000" />
-                 <InputRow icon={FileBadge} label="CPF (Não editável)" field="cpf" disabled />
-              </div>
-
-              <button 
-                onClick={() => setIsExpanded(!isExpanded)}
-                className="w-full flex items-center justify-between group py-3 px-2 border-t border-b border-[var(--border)] my-2 hover:bg-[var(--secondary)]/50 transition-colors"
-              >
-                 <span className="text-xs font-bold uppercase text-[var(--muted-foreground)] group-hover:text-[var(--primary)] transition-colors">
-                    {isExpanded ? "Ocultar Detalhes Extras" : "Ver Mais Informações"}
-                 </span>
-                 <motion.div 
-                    animate={{ rotate: isExpanded ? 180 : 0 }}
-                    transition={{ duration: 0.2 }}
-                 >
-                    <ChevronDown size={18} className="text-[var(--muted-foreground)] group-hover:text-[var(--primary)]" />
-                 </motion.div>
-              </button>
-
-              <AnimatePresence>
-                {isExpanded && (
-                    <motion.div
-                        initial={{ height: 0, opacity: 0 }}
-                        animate={{ height: "auto", opacity: 1 }}
-                        exit={{ height: 0, opacity: 0 }}
-                        className="overflow-hidden"
-                    >
-                        <div className="space-y-3 py-2">
-                            <InputRow icon={Briefcase} label="Cargo / Senioridade" field="senioridade" placeholder="Ex: Junior, Estudante..." />
-                            <InputRow icon={School} label="Instituição de Ensino" field="instituicao" placeholder="Sua faculdade" />
-                            <InputRow icon={School} label="Curso" field="curso" placeholder="Seu curso" />
-                            <InputRow icon={Shirt} label="Tamanho da Camiseta" field="tamanhoCamiseta" placeholder="P, M, G..." />
-                            <div className="h-px bg-[var(--border)] my-2" />
-                            <p className="text-xs font-bold text-[var(--muted-foreground)] uppercase mb-2">Redes Sociais</p>
-                            <InputRow icon={Linkedin} label="URL do LinkedIn" field="linkedin" placeholder="https://linkedin.com/in/..." />
-                            <InputRow icon={Github} label="URL do GitHub" field="github" placeholder="https://github.com/..." />
-                        </div>
-                    </motion.div>
-                )}
-              </AnimatePresence>
-
-              {/* ZONA DE PERIGO (RESET BINGO) */}
-              <div className="mt-8 pt-6 border-t border-[var(--border)] border-dashed">
-                 <p className="text-[10px] font-bold text-red-500 uppercase tracking-widest mb-3 text-center">
-                    Zona de Perigo
-                 </p>
-                 <button
-                    onClick={handleResetCard}
-                    disabled={isSaving}
-                    className="w-full flex items-center justify-center gap-2 border border-red-500/30 hover:bg-red-500/10 text-red-500 font-bold py-3 rounded-xl transition-all text-xs"
-                 >
-                    <RefreshCw size={16} />
-                    RESETAR MINHA CARTELA DE BINGO
-                 </button>
-                 <p className="text-[10px] text-center text-[var(--muted-foreground)] mt-2">
-                    Isso apagará seu progresso e gerará missões novas.
-                 </p>
-              </div>
-
-            </div>
-
-            <div className="p-6 border-t border-[var(--border)] bg-[var(--secondary)]/30 space-y-3">
-              <button
-                onClick={handleSave}
-                disabled={isSaving}
-                className="w-full flex items-center justify-center gap-2 bg-[var(--primary)] hover:opacity-90 text-white font-bold py-3.5 rounded-xl transition-all shadow-lg shadow-[var(--primary)]/20 disabled:opacity-70 disabled:cursor-not-allowed"
-              >
-                {isSaving ? <Loader2 className="animate-spin" size={20}/> : <Save size={20} />}
-                {isSaving ? "SALVANDO..." : "SALVAR ALTERAÇÕES"}
-              </button>
-
-              <button
-                onClick={handleLogout}
-                className="w-full flex items-center justify-center gap-2 text-[var(--muted-foreground)] hover:text-red-500 hover:bg-red-500/5 font-bold py-3 rounded-xl transition-all text-sm"
-              >
-                <LogOut size={16} />
-                Sair da Conta
-              </button>
-            </div>
-
-          </motion.div>
-        </>
-      )}
-    </AnimatePresence>
-
-    {/* MODAL DE FEEDBACK */}
-    <AnimatePresence>
-      {feedback && (
-        <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4">
-          <motion.div 
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="absolute inset-0 bg-black/70 backdrop-blur-sm"
-            onClick={handleCloseFeedback}
-          />
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 sm:p-6">
           
           <motion.div 
-            initial={{ scale: 0.9, opacity: 0 }} 
-            animate={{ scale: 1, opacity: 1 }} 
-            exit={{ scale: 0.9, opacity: 0 }}
-            className="relative bg-[var(--card)] w-full max-w-xs p-6 rounded-2xl border border-[var(--border)] shadow-2xl flex flex-col items-center text-center"
+            initial={{ opacity: 0 }} 
+            animate={{ opacity: 1 }} 
+            exit={{ opacity: 0 }}
+            className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+          />
+
+          <motion.div 
+            initial={{ scale: 0.95, opacity: 0, y: 20 }} 
+            animate={{ scale: 1, opacity: 1, y: 0 }} 
+            exit={{ scale: 0.95, opacity: 0, y: 20 }}
+            className="relative w-full max-w-2xl bg-[var(--card)] border border-[var(--border)] rounded-2xl shadow-2xl flex flex-col max-h-[90vh] overflow-hidden"
           >
-            <div className={`w-16 h-16 rounded-full flex items-center justify-center mb-4 ${
-              feedback.type === 'success' ? 'bg-green-500/10 text-green-500' : 'bg-red-500/10 text-red-500'
-            }`}>
-              {feedback.type === 'success' 
-                ? <CheckCircle2 size={32} /> 
-                : <AlertCircle size={32} />
-              }
+            
+            <div className="p-6 border-b border-[var(--border)] bg-[var(--secondary)]/20">
+                <div className="flex items-center gap-3 mb-2">
+                    <div className="p-2 bg-[var(--primary)]/20 rounded-lg">
+                        <Sparkles className="text-[var(--primary)]" size={24} />
+                    </div>
+                    <div>
+                        <h2 className="text-xl font-bold tracking-tight">Quase lá!</h2>
+                        <p className="text-sm text-[var(--muted-foreground)]">
+                          Essas informações nos ajudam a selecionar as melhores missões para o seu perfil.
+                        </p>
+                    </div>
+                </div>
+                {error && (
+                    <div className="mt-3 p-3 bg-red-500/10 border border-red-500/20 rounded-lg flex items-center gap-2 text-xs font-bold text-red-500 animate-in fade-in slide-in-from-top-2">
+                        <AlertCircle size={14}/> {error}
+                    </div>
+                )}
             </div>
 
-            <h3 className="text-lg font-black uppercase mb-2">
-              {feedback.type === 'success' ? 'Tudo Certo!' : 'Ops!'}
-            </h3>
-
-            <p className="text-sm text-[var(--muted-foreground)] mb-6">
-              {feedback.message}
-            </p>
-
-            <button 
-              onClick={handleCloseFeedback}
-              className={`w-full font-bold py-3 rounded-xl transition-all ${
-                feedback.type === 'success' 
-                  ? 'bg-green-500 hover:bg-green-600 text-white shadow-lg shadow-green-500/20' 
-                  : 'bg-red-500 hover:bg-red-600 text-white shadow-lg shadow-red-500/20'
-              }`}
+            <div className="flex-1 overflow-y-auto p-6 space-y-8 pr-2 
+                [&::-webkit-scrollbar]:w-1.5 
+                [&::-webkit-scrollbar-track]:bg-transparent 
+                [&::-webkit-scrollbar-thumb]:bg-[var(--muted-foreground)]/20 
+                [&::-webkit-scrollbar-thumb]:rounded-full 
+                hover:[&::-webkit-scrollbar-thumb]:bg-[var(--primary)]
+                transition-colors"
             >
-              {feedback.type === 'success' ? 'OK, FECHAR' : 'TENTAR NOVAMENTE'}
-            </button>
+                <form id="profile-form" onSubmit={handleSave} className="space-y-8">
+                    
+                    <section className="space-y-4">
+                        <h3 className="flex items-center gap-2 text-[var(--primary)] font-bold text-sm uppercase tracking-wider border-b border-[var(--border)] pb-2">
+                            <User size={16} /> Dados Pessoais
+                        </h3>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            
+                            <div className="md:col-span-2">
+                                <label className="text-xs font-bold text-[var(--muted-foreground)] uppercase mb-1 block">Apelido *</label>
+                                <input type="text" name="apelido" value={formData.apelido} onChange={handleChange} 
+                                    className="w-full p-3 rounded-xl bg-[var(--background)] border border-[var(--border)] focus:border-[var(--primary)] outline-none transition-all font-bold text-lg" 
+                                    placeholder="Ex: Teteu" />
+                            </div>
+
+                            
+                        </div>
+                    </section>
+
+                    <section className="space-y-4">
+                        <h3 className="flex items-center gap-2 text-[var(--primary)] font-bold text-sm uppercase tracking-wider border-b border-[var(--border)] pb-2">
+                            <Briefcase size={16} /> Preferências Profissionais
+                        </h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label className="text-xs font-bold text-[var(--muted-foreground)] uppercase mb-1 block">Senioridade</label>
+                                <select name="senioridade" value={formData.senioridade} onChange={handleChange} 
+                                    className="w-full p-3 rounded-xl bg-[var(--background)] border border-[var(--border)] focus:border-[var(--primary)] outline-none text-sm">
+                                    <option>Nenhuma</option>
+                                    <option>Estagiário</option>
+                                    <option>Júnior</option>
+                                    <option>Pleno</option>
+                                    <option>Sênior</option>
+                                    <option>Especialista</option>
+                                    <option>Lead/Manager</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label className="text-xs font-bold text-[var(--muted-foreground)] uppercase mb-1 block">Área de Interesse</label>
+                                <select name="areaInteresse" value={formData.areaInteresse} onChange={handleChange} 
+                                    className="w-full p-3 rounded-xl bg-[var(--background)] border border-[var(--border)] focus:border-[var(--primary)] outline-none text-sm">
+                                    <option>Frontend</option>
+                                    <option>Backend</option>
+                                    <option>Fullstack</option>
+                                    <option>Mobile</option>
+                                    <option>Dados / IA</option>
+                                    <option>Design / UX</option>
+                                    <option>Produto</option>
+                                    <option>DevOps / Cloud</option>
+                                    <option>QA / Testes</option>
+                                </select>
+                            </div>
+                            <div className="md:col-span-2">
+                                <label className="text-xs font-bold text-[var(--muted-foreground)] uppercase mb-1 block">Situação Atual</label>
+                                <select name="situacaoAtual" value={formData.situacaoAtual} onChange={handleChange} 
+                                    className="w-full p-3 rounded-xl bg-[var(--background)] border border-[var(--border)] focus:border-[var(--primary)] outline-none text-sm">
+                                    <option>Estudante</option>
+                                    <option>Empregado</option>
+                                    <option>Desempregado</option>
+                                    <option>Empreendedor</option>
+                                    <option>Transição de Carreira</option>
+                                </select>
+                            </div>
+                            <div className="md:col-span-2">
+                                <label className="text-xs font-bold text-[var(--muted-foreground)] uppercase mb-1 block">LinkedIn (URL)</label>
+                                <input type="text" name="linkedin" value={formData.linkedin} onChange={handleChange} 
+                                    className="w-full p-3 rounded-xl bg-[var(--background)] border border-[var(--border)] focus:border-[var(--primary)] outline-none transition-all" placeholder="https://linkedin.com/in/..." />
+                            </div>
+                            <div className="md:col-span-2">
+                                <label className="text-xs font-bold text-[var(--muted-foreground)] uppercase mb-1 block">Github / Portfólio (URL)</label>
+                                <input type="text" name="github" value={formData.github} onChange={handleChange} 
+                                    className="w-full p-3 rounded-xl bg-[var(--background)] border border-[var(--border)] focus:border-[var(--primary)] outline-none transition-all" placeholder="https://github.com/..." />
+                            </div>
+                        </div>
+                    </section>
+
+                    <section className="space-y-4">
+                        <h3 className="flex items-center gap-2 text-[var(--primary)] font-bold text-sm uppercase tracking-wider border-b border-[var(--border)] pb-2">
+                            <GraduationCap size={16} /> Acadêmico
+                        </h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="md:col-span-2">
+                                <label className="text-xs font-bold text-[var(--muted-foreground)] uppercase mb-1 block">Instituição</label>
+                                <input type="text" name="instituicao" value={formData.instituicao} onChange={handleChange} 
+                                    className="w-full p-3 rounded-xl bg-[var(--background)] border border-[var(--border)] focus:border-[var(--primary)] outline-none transition-all" placeholder="Nome da Faculdade" />
+                            </div>
+                            <div>
+                                <label className="text-xs font-bold text-[var(--muted-foreground)] uppercase mb-1 block">Curso</label>
+                                <input type="text" name="curso" value={formData.curso} onChange={handleChange} 
+                                    className="w-full p-3 rounded-xl bg-[var(--background)] border border-[var(--border)] focus:border-[var(--primary)] outline-none transition-all" />
+                            </div>
+                            <div>
+                                <label className="text-xs font-bold text-[var(--muted-foreground)] uppercase mb-1 block">Semestre</label>
+                                <select name="semestre" value={formData.semestre} onChange={handleChange} 
+                                    className="w-full p-3 rounded-xl bg-[var(--background)] border border-[var(--border)] focus:border-[var(--primary)] outline-none text-sm">
+                                    {[...Array(10)].map((_, i) => <option key={i} value={i+1}>{i+1}º Semestre</option>)}
+                                    <option value="Concluido">Concluído</option>
+                                </select>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section className="space-y-4">
+                        <h3 className="flex items-center gap-2 text-[var(--primary)] font-bold text-sm uppercase tracking-wider border-b border-[var(--border)] pb-2">
+                            <Shirt size={16} /> Extras
+                        </h3>
+                        
+                        <div>
+                            <label className="text-xs font-bold text-[var(--muted-foreground)] uppercase mb-2 block">Tamanho da Camiseta</label>
+                            <div className="flex gap-2 flex-wrap">
+                                {['P', 'M', 'G', 'GG', 'XG'].map(size => (
+                                    <button
+                                        key={size}
+                                        type="button"
+                                        onClick={() => handleManualChange('tamanhoCamiseta', size)}
+                                        className={`w-12 h-12 rounded-xl font-bold text-sm transition-all border ${
+                                            formData.tamanhoCamiseta === size 
+                                            ? 'bg-[var(--primary)] text-white border-[var(--primary)] shadow-lg shadow-[var(--primary)]/20 scale-105' 
+                                            : 'bg-[var(--background)] text-[var(--muted-foreground)] border-[var(--border)] hover:border-[var(--primary)]'
+                                        }`}
+                                    >
+                                        {size}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        <div className="space-y-3 pt-2">
+                            <label className="flex items-start gap-3 p-3 border border-[var(--border)] rounded-xl cursor-pointer hover:bg-[var(--secondary)]/20 transition-all group select-none">
+                                <div className="relative flex items-center justify-center mt-0.5">
+                                    <input
+                                        type="checkbox"
+                                        name="usoImagem"
+                                        checked={formData.usoImagem}
+                                        onChange={handleChange}
+                                        className="peer sr-only"
+                                    />
+                                    <div className={`w-5 h-5 rounded-md border-2 transition-all flex items-center justify-center ${formData.usoImagem ? 'bg-[var(--primary)] border-[var(--primary)]' : 'border-[var(--muted-foreground)]/40 bg-[var(--background)] group-hover:border-[var(--primary)]'}`}>
+                                        <Check size={12} strokeWidth={4} className={`text-white transition-transform ${formData.usoImagem ? 'scale-100' : 'scale-0'}`} />
+                                    </div>
+                                </div>
+                                <span className="text-xs text-[var(--muted-foreground)] group-hover:text-[var(--foreground)] transition-colors">
+                                    Autorizo o uso da minha imagem em fotos e vídeos para divulgação do evento Tech Start Summit.
+                                </span>
+                            </label>
+                            
+                            <label className="flex items-start gap-3 p-3 border border-[var(--border)] rounded-xl cursor-pointer hover:bg-[var(--secondary)]/20 transition-all group select-none">
+                                <div className="relative flex items-center justify-center mt-0.5">
+                                    <input
+                                        type="checkbox"
+                                        name="compartilhamento"
+                                        checked={formData.compartilhamento}
+                                        onChange={handleChange}
+                                        className="peer sr-only"
+                                    />
+                                    <div className={`w-5 h-5 rounded-md border-2 transition-all flex items-center justify-center ${formData.compartilhamento ? 'bg-[var(--primary)] border-[var(--primary)]' : 'border-[var(--muted-foreground)]/40 bg-[var(--background)] group-hover:border-[var(--primary)]'}`}>
+                                        <Check size={12} strokeWidth={4} className={`text-white transition-transform ${formData.compartilhamento ? 'scale-100' : 'scale-0'}`} />
+                                    </div>
+                                </div>
+                                <span className="text-xs text-[var(--muted-foreground)] group-hover:text-[var(--foreground)] transition-colors">
+                                    Aceito compartilhar meu currículo/LinkedIn com as empresas patrocinadoras para eventuais vagas.
+                                </span>
+                            </label>
+                        </div>
+                    </section>
+
+                </form>
+            </div>
+
+            <div className="p-6 border-t border-[var(--border)] bg-[var(--card)]">
+                <button
+                    onClick={handleSave}
+                    disabled={loading}
+                    className="w-full flex items-center justify-center gap-2 bg-[var(--primary)] hover:opacity-90 text-white p-4 rounded-xl font-bold text-lg shadow-xl shadow-[var(--primary)]/20 transition-all active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed"
+                >
+                    {loading ? <Loader2 className="animate-spin" /> : <Save size={20} />}
+                    {loading ? "Salvando..." : "Confirmar e Entrar"}
+                </button>
+            </div>
 
           </motion.div>
         </div>
       )}
     </AnimatePresence>
-    </>
   );
 }

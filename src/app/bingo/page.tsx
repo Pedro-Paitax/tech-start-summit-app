@@ -166,7 +166,7 @@ export default function BingoPage() {
         </p>
 
         <Link 
-          href="/login" 
+          href="/" 
           className="w-full max-w-xs bg-[var(--primary)] hover:opacity-90 text-white font-bold py-4 rounded-xl transition-all flex items-center justify-center gap-2 shadow-xl shadow-[var(--primary)]/20"
         >
           <LogIn size={20} />

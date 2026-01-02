@@ -173,7 +173,6 @@ export default function AgendaPage() {
         )}
       </div>
 
-      {/* NÃO COLOCAR OVERFLOW-X-AUTO AQUI PELO AMOR DE DEUS */}
       <div className="sticky top-0 z-30 bg-[var(--background)]/95 backdrop-blur pt-2 pb-4 border-b border-[var(--border)] mb-8">
         <div className="flex gap-3 pb-2">
           {orderedDays.map((dayKey) => {
@@ -344,10 +343,13 @@ export default function AgendaPage() {
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="relative w-full max-w-lg bg-[var(--card)] border border-[var(--border)] rounded-2xl shadow-2xl overflow-hidden max-h-[85vh] flex flex-col"
+              className="relative w-full max-w-lg bg-[var(--card)] border border-[var(--border)] rounded-2xl shadow-2xl overflow-hidden max-h-[85dvh] flex flex-col"
             >
               <div className="p-6 border-b border-[var(--border)] bg-[var(--background)]/50 relative">
-                <button onClick={() => setSelected(null)} className="absolute top-4 right-4 p-2 rounded-full hover:bg-[var(--secondary)] transition z-20">
+                <button 
+                  onClick={() => setSelected(null)} 
+                  className="absolute top-4 right-4 p-2 rounded-full bg-[var(--secondary)] hover:bg-[var(--secondary)]/80 transition z-50"
+                >
                   <X size={20} />
                 </button>
                 <div className="pr-6">
@@ -451,7 +453,7 @@ export default function AgendaPage() {
                   </div>
                 )}
 
-                <div className="p-4 border-t border-[var(--border)] bg-[var(--background)]/50">
+                <div className="p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] border-t border-[var(--border)] bg-[var(--background)]/50">
                   <button
                     onClick={() => toggleInterest(selected.id)}
                     disabled={isSaving}
