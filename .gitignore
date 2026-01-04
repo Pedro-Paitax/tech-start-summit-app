@@ -28,3 +28,6 @@ serviceAccountKey.json
 .next
 .vercel
 .env*.local
+
+.vercel
+.env*.local

@@ -58,16 +58,16 @@ export async function POST(req: Request) {
       logoBase64 = `data:image/svg+xml;base64,${logoBuffer.toString("base64")}`;
     }
 
-    const componentHtml = ReactDOMServer.renderToStaticMarkup(
-      <AgendaTemplate
-        items={items}
-        user={{
-          name: userName || "PARTICIPANTE",
-          role: userRole || "INSCRITO",
-        }}
-        logoBase64={logoBase64}
-      />
-    );
+const componentHtml = ReactDOMServer.renderToStaticMarkup(
+  React.createElement(AgendaTemplate, {
+    items,
+    user: {
+      name: userName || "PARTICIPANTE",
+      role: userRole || "INSCRITO",
+    },
+    logoBase64,
+  })
+);
 
     const fullHtml = `
       <!DOCTYPE html>
