@@ -102,7 +102,7 @@ export async function POST(req: Request) {
       chromium.setGraphicsMode = false;
       browser = await puppeteer.default.launch({
         args: chromium.args,
-        executablePath: await chromium.executablePath(),
+        executablePath: await chromium.executablePath(process.cwd()),
         headless: chromium.headless,
       });
     } else {
