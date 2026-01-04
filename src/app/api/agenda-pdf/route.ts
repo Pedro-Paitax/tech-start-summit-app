@@ -58,16 +58,16 @@ export async function POST(req: Request) {
       logoBase64 = `data:image/svg+xml;base64,${logoBuffer.toString("base64")}`;
     }
 
-const componentHtml = ReactDOMServer.renderToStaticMarkup(
-  React.createElement(AgendaTemplate, {
-    items,
-    user: {
-      name: userName || "PARTICIPANTE",
-      role: userRole || "INSCRITO",
-    },
-    logoBase64,
-  })
-);
+    const componentHtml = ReactDOMServer.renderToStaticMarkup(
+      React.createElement(AgendaTemplate, {
+        items,
+        user: {
+          name: userName || "PARTICIPANTE",
+          role: userRole || "INSCRITO",
+        },
+        logoBase64,
+      })
+    );
 
     const fullHtml = `
       <!DOCTYPE html>
@@ -94,13 +94,16 @@ const componentHtml = ReactDOMServer.renderToStaticMarkup(
     const isProd = process.env.VERCEL_ENV === "production";
 
     if (isProd) {
+
       const puppeteer = await import("puppeteer-core");
       const chromium = (await import("@sparticuz/chromium")).default;
 
+      chromium.setHeadlessMode = true;
+      chromium.setGraphicsMode = false;
       browser = await puppeteer.default.launch({
         args: chromium.args,
         executablePath: await chromium.executablePath(),
-        headless: true,
+        headless: chromium.headless,
       });
     } else {
       const puppeteer = await import("puppeteer");
