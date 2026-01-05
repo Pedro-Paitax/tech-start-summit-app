@@ -103,48 +103,20 @@ export default function MyAgendaPage() {
     if (selected?.id === itemId) setSelected(null);
   };
 
-  const downloadAgendaPDF = async () => {
-    if (isDownloading) return;
-    setIsDownloading(true);
-
-    try {
-      const nomeFinal = userData?.apelido || user?.displayName || "Participante";
-      const cargoFinal = userData?.senioridade || userData?.curso || "Inscrito";
-      
-      const res = await fetch("/api/agenda-pdf", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          items: myItems,
-          userName: nomeFinal.toUpperCase(),
-          userRole: cargoFinal.toUpperCase()
-        }),
-      });
-
-      if (!res.ok) {
-        const errText = await res.text();
-        console.error("Erro API PDF:", errText);
-        throw new Error("Erro ao gerar PDF");
-      }
-
-      const blob = await res.blob();
-      const url = window.URL.createObjectURL(blob);
-
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `agenda-${nomeFinal.split(' ')[0].toLowerCase()}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      
-      document.body.removeChild(a);
-      window.URL.revokeObjectURL(url);
-    } catch (error) {
-      console.error("Erro no download:", error);
-      alert("Não foi possível baixar o PDF agora. Verifique se o servidor backend está rodando.");
-    } finally {
-      setIsDownloading(false);
-    }
+const handleOpenPdf = () => {
+  const payload = {
+    items: myItems,
+    userName:
+      (userData?.apelido || user?.displayName || "Participante").toUpperCase(),
+    userRole:
+      (userData?.senioridade || userData?.curso || "Inscrito").toUpperCase(),
   };
+
+  sessionStorage.setItem("agenda-pdf-data", JSON.stringify(payload));
+
+  router.push("/pdf");
+};
+
 
   if (isLoading) {
     return (
@@ -190,7 +162,7 @@ export default function MyAgendaPage() {
 
           {favorites.length > 0 && (
             <button
-              onClick={downloadAgendaPDF}
+              onClick={handleOpenPdf}
               disabled={isDownloading}
               className={`flex items-center gap-2 px-4 py-2 text-xs font-bold text-white rounded-lg transition-all ${
                 isDownloading 
@@ -204,7 +176,7 @@ export default function MyAgendaPage() {
                 </>
               ) : (
                 <>
-                  <Download size={14} /> Baixar PDF
+                  <Download size={14} /> Baixar Agenda
                 </>
               )}
             </button>
