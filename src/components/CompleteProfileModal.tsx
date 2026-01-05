@@ -92,7 +92,6 @@ useEffect(() => {
         return;
     }
 
-    // --- PASSO 2: DÚVIDA ---
     if (step === 2) {
         if (!formData.duvida || formData.duvida.length < 3) {
             setError("Por favor, digite sua dúvida.");

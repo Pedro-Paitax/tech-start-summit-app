@@ -4,8 +4,8 @@ export type AgendaItem = {
   dayLabel: string;
   id: string;
   nome: string;
-  date: string | null;
-  dayKey: string | null;
+  date: string;
+  dayKey: string;
   time: string;
   speakerNames: string[];
   track: string;
