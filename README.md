@@ -1,73 +1,99 @@
-# React + TypeScript + Vite
+📱 Tech Start Summit App
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Este é o app oficial do Tech Start Summit — um summit focado em quem está começando na área de tecnologia com conteúdo acessível e direcionado para ingressar na carreira de TI. Todos os recursos do evento (agenda, palestras, atividades e mais) são acessíveis aqui de forma simples e organizada.
 
-Currently, two official plugins are available:
+👉 Versão hospedada: https://app.techstartsummit.com
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+🧠 Sobre o projeto
 
-## React Compiler
+O Tech Start Summit App foi criado para:
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+Exibir a programação completa do evento.
 
-## Expanding the ESLint configuration
+Permitir que participantes marquem sessões favoritas.
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+Oferecer recursos interativos como bingo de missões.
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+Permitir a exportação da agenda em PDF para uso offline.
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+É uma aplicação web moderna em Next.js + React (com TypeScript e Tailwind) que serve como hub central para a experiência do evento.
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+🚀 Funcionalidades
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+✔ 📅 Agenda do evento
+✔ ⭐ Favoritar palestras e atividades
+✔ 📄 Exportar agenda em PDF
+✔ 🔍 Informações de palestrantes e descrições
+✔ 🧩 Gamificação de participação
+✔ 🌐 Totalmente responsivo
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+⚙️ Tecnologias
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+O projeto utiliza as seguintes ferramentas:
+
+Next.js – framework React para renderização híbrida
+
+React Query – gerenciamento de estado assíncrono
+
+Firebase – backend para dados e autenticação
+
+Tailwind CSS – estilização utilitária
+
+TypeScript – tipagem estática
+
+Veja os arquivos de configuração como next.config.mjs, tailwind.config.js e tsconfig.json para entender mais sobre a estrutura.
+
+🧪 Como rodar localmente
+
+Clone este repositório
+
+git clone https://github.com/Pedro-Paitax/tech-start-summit-app.git
+cd tech-start-summit-app
+
+
+Instale as dependências
+
+npm install
+# ou
+yarn
+
+
+Configure variáveis de ambiente
+Crie um arquivo .env.local baseado no .env.example com as suas chaves (por exemplo, Firebase).
+
+Inicie em modo de desenvolvimento
+
+npm run dev
+# ou
+yarn dev
+
+
+Acesse no navegador:
+
+http://localhost:3000
+
+📦 Scripts úteis
+Comando	Descrição
+npm run dev	Inicia o app em modo dev
+npm run build	Gera a versão de produção
+npm run start	Roda o servidor de produção
+npm run lint	Roda lint no código
+🤝 Como contribuir
+
+Quer melhorar o app? Ótimo! Você pode:
+
+Fazer um fork deste repositório
+
+Criar uma branch para sua feature
+
+Fazer seus commits
+
+Abrir um Pull Request
+
+📝 Licença
+
+Este projeto está sob a licença MIT — sinta-se à vontade para usar, modificar e distribuir.
+
+💬 Dúvidas ou ajuda
+
+Se precisar de alguma coisa (deploy, dúvidas de código ou funcionalidades), pode abrir uma issue no GitHub ou mandar uma mensagem no seu canal preferido.
