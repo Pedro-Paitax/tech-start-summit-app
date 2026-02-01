@@ -41,7 +41,7 @@ async function fetchFromNotion() {
       }),
     ]);
     return { speakersRes, entitiesRes, programRes };
-}
+} 
 
 export async function GET() {
   try {

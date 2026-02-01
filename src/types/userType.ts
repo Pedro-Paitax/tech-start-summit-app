@@ -23,5 +23,7 @@ export type FirestoreUser = {
   aceiteCompartilhamento?: boolean
   createdAt?: Timestamp
   updatedAt?: Timestamp
+  track?: "dev" | "discovery" | "carreira" | "dados-ia" | "infra-cloud"
+
 }
 
