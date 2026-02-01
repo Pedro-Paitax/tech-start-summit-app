@@ -8,12 +8,17 @@ import BottomTabs from "./BottomTabs";
 import { ProfileDrawer } from "../ProfileDrawer";
 import CompleteProfileModal from "../CompleteProfileModal";
 import TourGuide from "../TourGuide";
+import WelcomeModal from "../WelcomeModal";
+import { doc, updateDoc } from "firebase/firestore";
+import { db } from "@/app/lib/firebase";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const { user, userData, logout } = useUser();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isCompleteProfileOpen, setIsCompleteProfileOpen] = useState(false);
+  const [isWelcomeModalOpen, setIsWelcomeModalOpen] = useState(false);
+
   const router = useRouter();
   const pathname = usePathname();
 
@@ -22,15 +27,34 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     setIsMenuOpen(false);
     router.push("/");
   };
-useEffect(() => {
-    if (user && userData) {
-        
-        if (userData.profileCompleted === false) {
-            console.log("Flag 'profileCompleted' é false. Iniciando onboarding...");
-            setIsCompleteProfileOpen(true);
-        }
+
+   const handleWelcomeClose = async () => {
+    setIsWelcomeModalOpen(false);
+      if (!user) return;
+    await updateDoc(doc(db, "users", user.uid), { isFirstLogin: false });
+  };
+
+  useEffect(() => {
+    if (!user || !userData) return;
+
+   if (userData.isFirstLogin === true) {
+      setIsWelcomeModalOpen(true);
+      return; 
     }
-  }, [userData, user]);
+    if (!userData.trilhaSelecionada
+ && pathname !== "/trilhas") {
+      router.push("/trilhas");
+      return;
+
+    }
+    if ( userData.trilhaSelecionada
+ && userData.profileCompleted === false) {
+      setIsCompleteProfileOpen(true);
+    }
+
+
+  }, [userData, user, pathname]);
+
 
   const isLoginPage = pathname === "/";
 
@@ -42,7 +66,11 @@ useEffect(() => {
     <div className="flex flex-col h-dvh bg-[var(--background)] text-[var(--foreground)]">
 
       <TourGuide />
-
+      <WelcomeModal
+        isOpen={isWelcomeModalOpen}
+        onClose={handleWelcomeClose}
+        userName={userData?.nomeCompleto}
+      />
       <CompleteProfileModal
         isOpen={isCompleteProfileOpen}
         onClose={() => setIsCompleteProfileOpen(false)}

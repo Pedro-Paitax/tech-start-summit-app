@@ -5,14 +5,14 @@ import type { User as FirebaseUser } from "firebase/auth";
 export type UserData = {
   uid: string;
   nomeCompleto?: string;
-  apelido?: string; // Importante para o crachá
+  apelido?: string; 
   email?: string;
   cpf?: string;
   senioridade?: string;
   curso?: string;
-  instituicao?: string; // Adicionei este pois o modal usa
-  semestre?: string;    // Adicionei este pois o modal usa
-  tamanhoCamiseta?: string; // Adicionei este pois o modal usa
+  instituicao?: string; 
+  semestre?: string;    
+  tamanhoCamiseta?: string; 
   linkedin?: string;
   github?: string;
   usoImagem?: boolean;
@@ -21,23 +21,18 @@ export type UserData = {
   areaInteresse?: string;
   agenda_favorites?: string[];
   profileCompleted?: boolean;
+  track?: "dev" | "discovery" | "carreira" | "dados" | "infra"
   [key: string]: unknown;
 };
 
-// Definição do Contexto
 export type UserContextType = {
-  // 'user' é a autenticação (Login/Logout/Email)
   user: FirebaseUser | { uid: string; displayName: string; email?: string } | null;
   
-  // 'userData' são os dados do perfil (Nome, Senioridade, Favoritos)
   userData: UserData | null; 
 
   isLoading: boolean;
   
-  // Funções
   logout: () => Promise<void>;
-  
-  // Função auxiliar para facilitar adicionar/remover da agenda em qualquer lugar
   toggleAgendaItem: (talkId: string) => Promise<void>;
 };
 
